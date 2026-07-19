@@ -1,0 +1,6 @@
+.venv/
+ecommerce_dw.db
+.env
+__pycache__/
+*.pyc
+output/
