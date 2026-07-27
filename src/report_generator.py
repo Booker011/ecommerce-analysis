@@ -11,6 +11,13 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from jinja2 import Template
+import plotly.graph_objects as go
+
+def _hex_to_rgb(hex_color: str) -> tuple:
+    """将十六进制颜色转换为 RGB 元组。"""
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
 
 from config import OUTPUT_DIR, CHINESE_FONT, AI_ENABLED
 
@@ -54,6 +61,13 @@ class ReportGenerator:
             attribution_results, gmv_results
         )
 
+        # 保存核心指标卡片为图片
+        print("\n  💾 保存核心指标卡片...")
+        try:
+            self._save_kpi_cards_image(template_data)
+        except Exception as e:
+            print(f"    ⚠️ KPI卡片图片生成失败: {e}")
+
         # 渲染HTML
         html_content = self._render_html(template_data)
 
@@ -67,6 +81,74 @@ class ReportGenerator:
         print(f"     文件大小: {file_size_kb} KB")
 
         return str(self.output_path.resolve())
+
+    def _save_kpi_cards_image(self, data: Dict[str, Any]):
+        """生成核心指标卡片图片并保存到 output/screenshots/00_核心指标卡片.png。"""
+        screenshots_dir = OUTPUT_DIR / "screenshots"
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
+
+        kpis = [
+            ("💰 预估GMV", data["kpi_gmv"], "#667eea"),
+            ("📦 总订单数", data["kpi_orders"], "#f093fb"),
+            ("👥 用户数", data["kpi_users"], "#4facfe"),
+            ("📈 整体转化率", data["kpi_conversion"], "#43e97b"),
+            ("🛒 客单价", data["kpi_asp"], "#fa709a"),
+            ("✅ 数据质量", data["kpi_quality"], "#a18cd1"),
+        ]
+
+        fig = go.Figure()
+
+        # 用横向柱状图 + 文本标注模拟指标卡片效果
+        for i, (label, value, color) in enumerate(kpis):
+            y_pos = 5 - i  # 从顶部开始排列
+
+            # 卡片背景
+            fig.add_shape(
+                type="rect",
+                x0=0.02, x1=0.98, y0=y_pos - 0.35, y1=y_pos + 0.35,
+                line=dict(color=color, width=2),
+                fillcolor=f"rgba({','.join(str(int(c)) for c in _hex_to_rgb(color))}, 0.08)",
+                layer="below",
+            )
+
+            # KPI 标签
+            fig.add_annotation(
+                x=0.05, y=y_pos,
+                text=label,
+                xref="paper", yref="y",
+                showarrow=False,
+                font=dict(family=CHINESE_FONT, size=16, color="#666"),
+                xanchor="left",
+            )
+
+            # KPI 数值
+            fig.add_annotation(
+                x=0.95, y=y_pos,
+                text=f"<b>{value}</b>",
+                xref="paper", yref="y",
+                showarrow=False,
+                font=dict(family=CHINESE_FONT, size=24, color=color),
+                xanchor="right",
+            )
+
+        fig.update_layout(
+            title=dict(
+                text="📊 核心指标一览",
+                font=dict(family=CHINESE_FONT, size=24, color="#1a1a2e"),
+                x=0.5,
+            ),
+            xaxis=dict(visible=False, range=[0, 1]),
+            yaxis=dict(visible=False, range=[-0.5, 5.7]),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            height=500,
+            width=900,
+            margin=dict(l=20, r=20, t=60, b=20),
+        )
+
+        filepath = screenshots_dir / "00_核心指标卡片.png"
+        fig.write_image(str(filepath), width=900, height=500, scale=2)
+        print(f"    💾 已保存: {filepath.name}")
 
     def _prepare_data(self, summary, quality_report, dw_info, checker_report, attribution_results, gmv_results):
         """汇总所有数据为模板变量。"""

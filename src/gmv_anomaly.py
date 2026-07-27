@@ -16,7 +16,7 @@ import base64
 import json
 
 from config import (
-    DB_PATH, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, AI_ENABLED,
+    DB_PATH, OUTPUT_DIR, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, AI_ENABLED,
     GMV_SIGMA_THRESHOLD, GMV_YOY_THRESHOLD,
     PLOTLY_FONT_CONFIG, PLOTLY_TITLE_FONT_CONFIG, CHINESE_FONT,
 )
@@ -32,6 +32,8 @@ class GMVAnomalyDetector:
         self.ai_summary: str = ""
         self.ai_mode: str = "规则引擎"  # 实际使用的模式
         self.chart: str = ""
+        self._figure: Optional[go.Figure] = None  # GMV异常检测图表对象
+        self.screenshots_dir = OUTPUT_DIR / "screenshots"
 
     def _query(self, sql: str) -> pd.DataFrame:
         """执行 SQL 查询。"""
@@ -197,6 +199,7 @@ class GMVAnomalyDetector:
         fig.update_yaxes(title_text="GMV (¥)")
 
         self.chart = self._fig_to_base64(fig)
+        self._figure = fig  # 保存 Figure 对象用于导出 PNG
 
     # ============================================
     # 6.2 三层归因框架
@@ -586,6 +589,13 @@ class GMVAnomalyDetector:
 
         results["chart"] = self.chart
         results["anomaly_count"] = len(self.anomalies)
+
+        # 保存 GMV 异常检测图为 PNG
+        if self._figure:
+            self.screenshots_dir.mkdir(parents=True, exist_ok=True)
+            filepath = self.screenshots_dir / "07_GMV异常检测图.png"
+            self._figure.write_image(str(filepath), width=1000, height=500, scale=1.5)
+            print(f"    💾 已保存: {filepath.name}")
 
         print(f"\n  ✅ GMV分析完成: {len(self.anomalies)} 个异常点, 归因模式: {self.ai_mode}")
         return results

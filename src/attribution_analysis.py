@@ -21,7 +21,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from io import BytesIO
 import base64
 
-from config import DB_PATH, PLOTLY_FONT_CONFIG, PLOTLY_TITLE_FONT_CONFIG, CHINESE_FONT
+from config import DB_PATH, OUTPUT_DIR, PLOTLY_FONT_CONFIG, PLOTLY_TITLE_FONT_CONFIG, CHINESE_FONT
 
 
 class AttributionAnalyzer:
@@ -30,9 +30,11 @@ class AttributionAnalyzer:
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or str(DB_PATH)
         self.charts: Dict[str, str] = {}        # 图表名称 → Base64 HTML
+        self._figures: Dict[str, Any] = {}       # 图表名称 → Figure 对象 (用于保存PNG)
         self.conclusions: List[str] = []
         self.recommendations: List[str] = []
         self.correlation_result: Dict[str, Any] = {}
+        self.screenshots_dir = OUTPUT_DIR / "screenshots"
 
     def _query(self, sql: str) -> pd.DataFrame:
         """执行 SQL 查询。"""
@@ -42,13 +44,41 @@ class AttributionAnalyzer:
         finally:
             conn.close()
 
-    def _fig_to_base64(self, fig: go.Figure) -> str:
-        """将 Plotly 图表转为 Base64 编码的 HTML img 标签。"""
+    def _fig_to_base64(self, fig: go.Figure, fig_name: Optional[str] = None) -> str:
+        """将 Plotly 图表转为 Base64 编码的 HTML img 标签。
+
+        Args:
+            fig: Plotly 图表对象
+            fig_name: 图表名称，如果提供则同时保存为 PNG 文件
+
+        Returns:
+            str: Base64 编码的 img 标签
+        """
         buf = BytesIO()
         fig.write_image(buf, format="png", width=1000, height=550, scale=1.5)
         buf.seek(0)
         img_b64 = base64.b64encode(buf.read()).decode("utf-8")
+        # 同时存储 Figure 对象，用于保存 PNG
+        if fig_name:
+            self._figures[fig_name] = fig
         return f'<img src="data:image/png;base64,{img_b64}" style="width:100%;height:auto;" />'
+
+    def _save_all_pngs(self):
+        """将所有图表保存为 PNG 文件到 output/screenshots/ 目录。"""
+        self.screenshots_dir.mkdir(parents=True, exist_ok=True)
+        name_map = {
+            "trend_dual_axis": "01_流量转化趋势图.png",
+            "channel_pie": "02_渠道流量饼图.png",
+            "channel_bar": "03_渠道转化率柱状图.png",
+            "user_conversion": "04_新老用户转化对比图.png",
+            "category_ranking": "05_品类转化率排名图.png",
+            "funnel": "06_漏斗图.png",
+        }
+        for fig_name, filename in name_map.items():
+            if fig_name in self._figures:
+                filepath = self.screenshots_dir / filename
+                self._figures[fig_name].write_image(str(filepath), width=1000, height=550, scale=1.5)
+                print(f"    💾 已保存: {filepath.name}")
 
     def _create_figure_layout(self, fig: go.Figure, title: str, x_title: str = "", y_title: str = ""):
         """统一的图表布局设置，确保中文正常显示。"""
@@ -126,7 +156,7 @@ class AttributionAnalyzer:
         fig.update_yaxes(title_text="转化率 (%)", secondary_y=True)
         self._create_figure_layout(fig, "流量与转化率趋势（双Y轴）")
 
-        self.charts["trend_dual_axis"] = self._fig_to_base64(fig)
+        self.charts["trend_dual_axis"] = self._fig_to_base64(fig, "trend_dual_axis")
 
         # 皮尔逊相关系数
         if len(df_conv) >= 3:
@@ -201,7 +231,7 @@ class AttributionAnalyzer:
             )
         ])
         self._create_figure_layout(fig_pie, "各渠道流量占比")
-        self.charts["channel_pie"] = self._fig_to_base64(fig_pie)
+        self.charts["channel_pie"] = self._fig_to_base64(fig_pie, "channel_pie")
 
         # 柱状图：各渠道转化率对比
         colors = ["#e74c3c" if rate < df_channel["conversion_rate"].mean() else "#27ae60"
@@ -227,7 +257,7 @@ class AttributionAnalyzer:
             annotation_font=dict(family=CHINESE_FONT, size=10),
         )
         self._create_figure_layout(fig_bar, "各渠道转化率对比", "渠道", "转化率 (%)")
-        self.charts["channel_bar"] = self._fig_to_base64(fig_bar)
+        self.charts["channel_bar"] = self._fig_to_base64(fig_bar, "channel_bar")
 
         # 识别低转化渠道
         low_conv_channels = df_channel[
@@ -296,7 +326,7 @@ class AttributionAnalyzer:
                 ))
 
             self._create_figure_layout(fig_user, "新老用户转化率对比", "日期", "转化率 (%)")
-            self.charts["user_conversion"] = self._fig_to_base64(fig_user)
+            self.charts["user_conversion"] = self._fig_to_base64(fig_user, "user_conversion")
         else:
             self.charts["user_conversion"] = ""
 
@@ -370,7 +400,7 @@ class AttributionAnalyzer:
             )
         ])
         self._create_figure_layout(fig_cat, "各品类转化率排名", "转化率 (%)", "品类")
-        self.charts["category_ranking"] = self._fig_to_base64(fig_cat)
+        self.charts["category_ranking"] = self._fig_to_base64(fig_cat, "category_ranking")
 
         # 高流量低转化品类识别
         pv_median = df_cat["total"].median()
@@ -438,7 +468,7 @@ class AttributionAnalyzer:
             )
         ])
         self._create_figure_layout(fig_funnel, "用户行为漏斗：浏览 → 加购 → 购买")
-        self.charts["funnel"] = self._fig_to_base64(fig_funnel)
+        self.charts["funnel"] = self._fig_to_base64(fig_funnel, "funnel")
 
         funnel_data = {
             "views": views,
@@ -574,6 +604,10 @@ class AttributionAnalyzer:
         # 汇总
         results["charts"] = self.charts
         results["chart_count"] = len(self.charts)
+
+        # 保存图表为 PNG 文件
+        print("\n  💾 保存归因分析图表...")
+        self._save_all_pngs()
 
         print(f"\n  ✅ 归因分析完成: 生成 {len(self.charts)} 张图表, {len(self.conclusions)} 条结论")
         return results
