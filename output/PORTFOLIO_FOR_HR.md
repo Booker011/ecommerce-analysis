@@ -132,7 +132,7 @@ flowchart TD
 
 **分析方法**：双Y轴叠加展示PV（浏览量）和转化率，一眼判断流量和转化的关系。
 
-![流量转化趋势](.screenshots/01_流量转化趋势图.png)
+![流量转化趋势](https://raw.githubusercontent.com/Booker011/ecommerce-analysis/main/output/screenshots/01_流量转化趋势图.png)
 
 **分析发现**：
 - **4月转化率约18% → 5月约15% → 6月约12%**，持续3个月下滑，排除偶然波动
@@ -150,8 +150,8 @@ flowchart TD
 **分析方法**：渠道流量占比饼图 + 各渠道转化率 vs 均线柱状图。
 
 <div style="display: flex; gap: 20px; justify-content: center;">
-  <img src=".screenshots/02_渠道流量饼图.png" width="48%" alt="渠道流量占比">
-  <img src=".screenshots/03_渠道转化率柱状图.png" width="48%" alt="渠道转化率对比">
+  <img src="https://raw.githubusercontent.com/Booker011/ecommerce-analysis/main/output/screenshots/02_渠道流量饼图.png" width="48%" alt="渠道流量占比">
+  <img src="https://raw.githubusercontent.com/Booker011/ecommerce-analysis/main/output/screenshots/03_渠道转化率柱状图.png" width="48%" alt="渠道转化率对比">
 </div>
 
 **分析发现**：
@@ -169,7 +169,7 @@ flowchart TD
 
 **分析方法**：新老用户转化率趋势对比 + 复购率趋势。
 
-![新老用户对比](.screenshots/04_新老用户转化对比图.png)
+![新老用户对比](https://raw.githubusercontent.com/Booker011/ecommerce-analysis/main/output/screenshots/04_新老用户转化对比图.png)
 
 **分析发现**：
 - 老用户（橙色线）的转化率**始终高于**新用户（蓝色线），这符合预期
@@ -186,7 +186,7 @@ flowchart TD
 
 **分析方法**：各品类转化率横向对比，标记低于均线的品类。
 
-![品类转化率](.screenshots/05_品类转化率排名图.png)
+![品类转化率](https://raw.githubusercontent.com/Booker011/ecommerce-analysis/main/output/screenshots/05_品类转化率排名图.png)
 
 **分析发现**：
 - 红色柱（低于平均转化率的品类）就是需要重点关注的
@@ -203,7 +203,7 @@ flowchart TD
 
 **分析方法**：全链路漏斗（浏览→加购→购买）。
 
-![漏斗图](.screenshots/06_漏斗图.png)
+![漏斗图](https://raw.githubusercontent.com/Booker011/ecommerce-analysis/main/output/screenshots/06_漏斗图.png)
 
 **分析发现**：
 - **浏览→加购率：51.7%** — 约一半用户看完会加购，尚可
@@ -309,7 +309,7 @@ GMV变化 = f(流量变化, 转化率变化, 客单价变化)
 
 系统使用**3-sigma原则 + 日环比变化率**双重检测：
 
-![GMV异常检测](.screenshots/07_GMV异常检测图.png)
+![GMV异常检测](https://raw.githubusercontent.com/Booker011/ecommerce-analysis/main/output/screenshots/07_GMV异常检测图.png)
 
 图中每个红色叉号都是一个被系统自动标记的异常点。系统检测到 **63个异常点**，每个都自动完成了三层归因。
 
